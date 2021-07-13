@@ -21,51 +21,49 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xls", sheet("Country Analytical History") cellrange(A5:AI240) firstrow clear
-rename A code
-rename Banks economy
-drop if missing(code)
-compress
+import excel "InputData/OGHIST.xlsx", sheet("Historical classifications") cellrange(A1:F7617) firstrow clear
+rename wb_code code
+rename country economy
+rename publicationyear year
+keep code economy income_group year
 // Creating income classifications for countries that didn't exist
 // Giving Kosovo Serbia's income classification before it became a separate country
 *br if inlist(code,"SRB","XKX")
-foreach var of varlist FY08-FY09 {
-replace `var' = "UM" if code=="XKX"
-}
-// Giving Serbia, Montenegro and Kosovo Yugoslavia's income classification before they become separate countries
+gen SRB = income_group if code=="SRB"
+gsort year -SRB
+replace SRB = SRB[_n-1] if missing(SRB)
+replace income_group = SRB if code=="XKX" & missing(income_group)
+drop SRB
+// Giving Serbia, Montenegro, and Kosovo Yugoslavia's income classification before they become separate countries
 *br if inlist(code,"YUG","SRB","MNE","XKX")
-foreach var of varlist FY94-FY07 {
-replace `var' = "LM" if inlist(code,"SRB","MNE","XKX")
-}
+gen YUG = income_group if code=="YUG"
+gsort year -YUG
+replace YUG = YUG[_n-1] if missing(YUG)
+replace income_group = YUG if inlist(code,"MNE","SRB","XKX") & missing(income_group)
+drop YUG
 drop if code=="YUG"
 // Giving all Yugoslavian countries Yugoslavia's income classification before they became separate countries
 *br if inlist(code,"YUGf","HRV","SVN","MKD","BIH","SRB","MNE","XKX")
-foreach var of varlist FY89-FY93 {
-replace `var' = "UM" if inlist(code,"HRV","SVN","MKD","BIH","SRB","MNE","XKX")
-}
+gen YUGf = income_group if code=="YUGf"
+gsort year -YUGf
+replace YUGf = YUGf[_n-1] if missing(YUGf)
+replace income_group = YUGf if inlist(code,"HRV","SVN","MKD","BIH","SRB","MNE","XKX") & missing(income_group)
+drop YUGf
 drop if code=="YUGf"
 // Giving Czeck and Slovakia Czeckoslovakia's income classification before they became separate countries
 *br if inlist(code,"CSK","CZE","SVK")
-foreach var of varlist FY92-FY93 {
-replace `var' = "UM" if inlist(code,"HRV","CZE","SVK")
-}
+gen CSK = income_group if code=="CSK"
+gsort year -CSK
+replace CSK = CSK[_n-1] if missing(CSK)
+replace income_group = CSK if inlist(code,"CZE","SVK") & missing(income_group)
+drop CSK
 drop if code=="CSK"
 // Dropping three economies that are not among the WB's 218 economies
 drop if inlist(code,"MYT","ANT","SUN")
-
-// Changing variable names
-local year = 1988
-foreach var of varlist FY89-FY21 {
-rename `var' y`year'
-local year = `year' + 1
-}
-drop economy
-// Reshaping to long format
-reshape long y, i(code) j(year)
-rename y incgroup_historical
-replace incgroup_historical = "" if incgroup_historical==".."
+// Now 218 economies
+distinct code
 // Assume income group carries backwards when missing
-* br if missing(incgroup_historical)
+br if missing(income_group)
 gsort code -year
 bysort code: replace incgroup_historical = incgroup_historical[_n-1] if missing(incgroup_historical) & year>=1988
 // Changing label/format
