@@ -2,11 +2,11 @@
 *** INTRODUCTION ***
 ********************
 /* 
-This .do-file creates a .dta with current and historical income group, IDA and FCV classifications 
-for each of the 218 economies the World Bank's operates with, from 1988 to 2020. 
+This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
+for each of the 218 economies the World Bank's operates with, from 1988 to 2021. 
 1988 is the first year with income classification data.
-The income, lending and FCV data for fiscal year YYYY is mapped to year YYYY-1.
-For example, the FY2021 income groups (which were launched July 1 2020) are mapped to 2020.
+The income, lending, and FCV data for fiscal year YYYY is mapped to year YYYY-1.
+For example, the FY2022 income groups (which were launched July 1 2021) are mapped to 2021.
 Created by: Daniel Gerszon Mahler
 */
 
@@ -62,15 +62,15 @@ drop if code=="CSK"
 drop if inlist(code,"MYT","ANT","SUN")
 // Now 218 economies
 distinct code
+if r(ndistinct)!=218 {
+disp in red "There is an error somewhere -- you do not have 218 distinct economies"
+}
+rename income_group incgroup_historical
 // Assume income group carries backwards when missing
-br if missing(income_group)
 gsort code -year
 bysort code: replace incgroup_historical = incgroup_historical[_n-1] if missing(incgroup_historical) & year>=1988
-// Changing label/format
-replace incgroup = "High income"         if incgroup=="H"
-replace incgroup = "Upper middle income" if incgroup=="UM"
-replace incgroup = "Lower middle income" if inlist(incgroup,"LM","LM*")
-replace incgroup = "Low income"          if incgroup=="L"
+// Assume income group carries forwards when missing. Only applies to Venezuela 2021
+bysort code (year): replace incgroup_historical = incgroup_historical[_n-1] if missing(incgroup_historical) & year>=1988
 label var incgroup_historical "Income group - historically"
 label var code "Country code"
 label var year "Year"
@@ -130,13 +130,28 @@ merge   1:1 code year using "OutputData/CLASS.dta", update replace nogen
 sort    code year
 save    "OutputData/CLASS.dta", replace
 
+***************************
+*** FY2022 IDA CATEGORY ***
+***************************
+import excel "InputData/CLASS_FY2022.xlsx", sheet("List of economies") firstrow clear
+drop Other Incomegroup
+drop if missing(Region)
+rename Code code
+rename Lendingcat ida_historical
+rename Region region
+rename Economy economy
+replace ida = "Rest of the world" if missing(ida)
+gen year = 2021
+merge 1:1 code year using "OutputData/CLASS.dta",  replace update nogen
+save    "OutputData/CLASS.dta", replace
+
 ******************
 *** FCV FY2020 ***
 ******************
 bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2019
 // Making the changes from the FY19 list
-replace fcv_historical = "No"  if year==2019 & inlist(code,"CIV","DJI","MOZ","TGO")       & year==2019
-replace fcv_historical = "Yes" if year==2019 & inlist(code,"BFA","CMR","NER","NGA","VEN") & year==2019
+replace fcv_historical = "No"  if year==2019 & inlist(code,"CIV","DJI","MOZ","TGO")       
+replace fcv_historical = "Yes" if year==2019 & inlist(code,"BFA","CMR","NER","NGA","VEN") 
 save "OutputData/CLASS.dta", replace
 
 ******************
@@ -147,6 +162,14 @@ bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2020
 replace fcv_historical = "Yes" if year==2020 & inlist(code,"MOZ","LAO") & year==2020
 save "OutputData/CLASS.dta", replace
 
+******************
+*** FCV FY2022 ***
+******************
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2021
+// Making the changes from the FY19 list
+replace fcv_historical = "No"  if year==2021 & inlist(code,"GMB","LAO","LBR")       
+replace fcv_historical = "Yes" if year==2021 & inlist(code,"ARM","AZE","ETH")
+save "OutputData/CLASS.dta", replace
 
 *******************************
 *** ADDING POVCALNET REGION ***
@@ -164,8 +187,8 @@ save "OutputData/CLASS.dta", replace
 use "InputData/SSAregions.dta", clear
 drop countryname
 rename countrycode code
-rename regioncode ssasubregion
-lab var ssasubregion "SSA subregion"
+rename regioncode region_SSA
+lab var region_SSA "SSA subregion"
 merge 1:m code using "OutputData/CLASS.dta", nogen
 save "OutputData/CLASS.dta", replace
 
@@ -187,7 +210,11 @@ sort code year
 lab var incgroup_current "Income group - latest year"
 lab var ida_current      "Lending category - latest year"
 lab var fcv_current      "FCV status - latest year"
-order economy code year region* ssasubregion incgroup* ida* fcv*
+lab var year             "Year"
+lab var code             "Country code"
+lab var region           "World Bank region"
+lab var region_povcalnet "PovcalNet region"
+order economy code year region region_povcalnet region_SSA incgroup* ida* fcv*
 
 compress
 
