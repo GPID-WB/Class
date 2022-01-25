@@ -5,8 +5,6 @@
 This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
 for each of the 218 economies the World Bank's operates with, from 1988 to 2021. 
 1988 is the first year with income classification data.
-The income, lending, and FCV data for fiscal year YYYY is mapped to year YYYY-1.
-For example, the FY2022 income groups (which were launched July 1 2021) are mapped to 2021.
 Created by: Daniel Gerszon Mahler
 */
 
@@ -207,6 +205,19 @@ gsort code -`var'
 bysort code: replace `var'=`var'[_n-1] if missing(`var')
 }
 sort code year
+
+// Add other year interpretations
+// The current year variable reflects the year the classifications/statuses were released
+rename year year_release
+lab var year_release "Year the classification was released"
+// They represent the classifications applied to the fiscal year after they were released
+// I.e. the income groups released July 1 2021 arecalled the FY22 income groups
+gen year_fiscal = year_release+1
+lab var year_fiscal "Fiscal year the classification applies to"
+// For the income groups (and I think also IDA/FCV classification), the classifcation released in a given year rely on data from the prior year
+gen year_data = year_release-1
+lab var year_data "Year of the data the classifications are based upon"
+
 lab var incgroup_current "Income group - latest year"
 lab var ida_current      "Lending category - latest year"
 lab var fcv_current      "FCV status - latest year"
