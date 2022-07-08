@@ -3,7 +3,7 @@
 ********************
 /* 
 This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
-for each of the 218 economies the World Bank's operates with, from 1988 to 2021. 
+for each of the 218 economies the World Bank's operates with, from 1988 to 2023. 
 1988 is the first year with income classification data.
 Created by: Daniel Gerszon Mahler
 */
@@ -19,11 +19,23 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xlsx", sheet("Historical classifications") cellrange(A1:F7617) firstrow clear
-rename wb_code code
-rename country economy
-rename publicationyear year
-keep code economy income_group year
+import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AK238) firstrow clear
+drop if missing(A)
+rename A code
+rename Banksfiscalyear economy
+compress
+forvalues yr=89/99 {
+rename FY`yr' y19`yr'
+}
+forvalues yr=0/9 {
+rename FY0`yr' y200`yr'
+}
+forvalues yr=10/23 {
+rename FY`yr' y20`yr'
+}
+reshape long y, i(code economy) j(year)
+rename y income_group
+replace income_group="" if income_group==".."
 // Creating income classifications for countries that didn't exist
 // Giving Kosovo Serbia's income classification before it became a separate country
 *br if inlist(code,"SRB","XKX")
@@ -72,6 +84,10 @@ bysort code (year): replace incgroup_historical = incgroup_historical[_n-1] if m
 label var incgroup_historical "Income group - historically"
 label var code "Country code"
 label var year "Year"
+replace incgroup_historical = "Low income" if incgroup_historical=="L"
+replace incgroup_historical = "Lower middle income" if inlist(incgroup_historical,"LM*","LM")
+replace incgroup_historical = "Upper middle income" if incgroup_historical=="UM"
+replace incgroup_historical = "High income" if incgroup_historical=="H"
 save "OutputData/CLASS.dta", replace
 
 ******************************************
@@ -79,7 +95,6 @@ save "OutputData/CLASS.dta", replace
 ******************************************
 import excel "InputData/IDA-FCV.xlsx", sheet("Sheet1") firstrow clear
 drop unique iso2 N SS PSW SUF Refugees Country RegionCode eligibility_sincefy12
-replace year = year - 1 // Such that FY19 classification applies to 2018
 rename CountryCode code
 replace code="XKX" if code=="KSV"
 replace code="TLS" if code=="TMP"
@@ -91,7 +106,7 @@ sort code year
 // FCV
 rename FCSFCV fcv_historical
 label var fcv_historical "FCV status - historically"
-replace   fcv_historical = "N"   if inrange(year,1999,2018) & missing(fcv_historical)
+replace   fcv_historical = "N"   if inrange(year,2000,2019) & missing(fcv_historical)
 replace   fcv_historical = "No"  if fcv_historical=="N"
 replace   fcv_historical = "Yes" if fcv_historical=="Y"
 	
@@ -101,7 +116,7 @@ label var ida_historical "Lending group - historically"
 replace   ida_historical = "Rest of the world" if ida_historical=="other"
 replace   ida_historical = "Blend"             if ida_historical=="BLEND"
 *tab year ida_hist,m
-replace ida_historical = "Rest of the world" if missing(ida_historical) & inrange(year,1999,2018)
+replace ida_historical = "Rest of the world" if missing(ida_historical) & inrange(year,2000,2019)
 save "OutputData/CLASS.dta", replace
 
 
@@ -111,71 +126,79 @@ save "OutputData/CLASS.dta", replace
 foreach year in 2020 2021 {
 import excel "InputData/CLASS_FY`year'.xls", sheet("List of economies") cellrange(C5:H224) firstrow clear
 drop if _n==1
-drop X Incomegroup
+keep Code Lendingcat
 rename Code code
 rename Lendingcat ida_historical`year'
-rename Region region
-rename Economy economy
 replace ida = "Rest of the world" if ida==".."
 tempfile `year'
 save     ``year''
 }
 use    `2020', clear
 merge   1:1 code using `2021', nogen
-reshape long ida_historical, i(economy code region) j(year)
-replace year = year-1  // Such that FY19 classification applies to 2018
+reshape long ida_historical, i(code) j(year)
 merge   1:1 code year using "OutputData/CLASS.dta", update replace nogen
 sort    code year
 save    "OutputData/CLASS.dta", replace
 
-***************************
-*** FY2022 IDA CATEGORY ***
-***************************
-import excel "InputData/CLASS_FY2022.xlsx", sheet("List of economies") firstrow clear
-drop Other Incomegroup
+**********************************
+*** FY2022-FY2023 IDA CATEGORY ***
+**********************************
+foreach year in 2022 2023 {
+import excel "InputData/CLASS_FY`year'.xlsx", sheet("List of economies") firstrow clear
 drop if missing(Region)
+keep  Code Lendingcat Region
 rename Code code
-rename Lendingcat ida_historical
 rename Region region
-rename Economy economy
+rename Lendingcat ida_historical
 replace ida = "Rest of the world" if missing(ida)
-gen year = 2021
+gen year = `year'
 merge 1:1 code year using "OutputData/CLASS.dta",  replace update nogen
 save    "OutputData/CLASS.dta", replace
+}
 
 ******************
 *** FCV FY2020 ***
 ******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2019
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2020
 // Making the changes from the FY19 list
-replace fcv_historical = "No"  if year==2019 & inlist(code,"CIV","DJI","MOZ","TGO")       
-replace fcv_historical = "Yes" if year==2019 & inlist(code,"BFA","CMR","NER","NGA","VEN") 
+replace fcv_historical = "No"  if year==2020 & inlist(code,"CIV","DJI","MOZ","TGO")       
+replace fcv_historical = "Yes" if year==2020 & inlist(code,"BFA","CMR","NER","NGA","VEN") 
 save "OutputData/CLASS.dta", replace
 
 ******************
 *** FCV FY2021 ***
 ******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2020
-// Making the changes from the FY19 list
-replace fcv_historical = "Yes" if year==2020 & inlist(code,"MOZ","LAO") & year==2020
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2021
+// Making the changes from the FY20 list
+replace fcv_historical = "Yes" if year==2021 & inlist(code,"MOZ","LAO")
 save "OutputData/CLASS.dta", replace
 
 ******************
 *** FCV FY2022 ***
 ******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2021
-// Making the changes from the FY19 list
-replace fcv_historical = "No"  if year==2021 & inlist(code,"GMB","LAO","LBR")       
-replace fcv_historical = "Yes" if year==2021 & inlist(code,"ARM","AZE","ETH")
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2022
+// Making the changes from the FY21 list
+replace fcv_historical = "No"  if year==2022 & inlist(code,"GMB","LAO","LBR")       
+replace fcv_historical = "Yes" if year==2022 & inlist(code,"ARM","AZE","ETH")
 save "OutputData/CLASS.dta", replace
 
-*******************************
-*** ADDING POVCALNET REGION ***
-*******************************
-pcn master, load(countrylist)
-keep   countrycode wbregioncode
-rename countrycode code
-rename wbregioncode region_povcalnet
+******************
+*** FCV FY2023 ***
+******************
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2023
+// Making the changes from the FY22 list
+replace fcv_historical = "No"  if year==2023 & inlist(code,"ARM","AZE","KIR")       
+replace fcv_historical = "Yes" if year==2023 & inlist(code,"UKR")
+save "OutputData/CLASS.dta", replace
+
+*************************
+*** ADDING PIP REGION ***
+*************************
+pip tables, table(country_coverage) clear
+keep   country_code pcn_region_code
+duplicates drop
+rename country_code code
+rename pcn_region_code region_pip
 merge  1:m code using "OutputData/CLASS.dta", nogen
 save "OutputData/CLASS.dta", replace
 
@@ -207,13 +230,12 @@ bysort code: replace `var'=`var'[_n-1] if missing(`var')
 sort code year
 
 // Add other year interpretations
-// The current year variable reflects the year the classifications/statuses were released
-rename year year_release
-lab var year_release "Year the classification was released"
-// They represent the classifications applied to the fiscal year after they were released
-// I.e. the income groups released July 1 2021 arecalled the FY22 income groups
-gen year_fiscal = year_release+1
+// The current year variable reflects the year of the fiscal year
+rename year year_fiscal
 lab var year_fiscal "Fiscal year the classification applies to"
+// They represent the classifications that were released in year
+gen year_release = year_fiscal-1
+lab var year_release "Year the classification was released"
 // For the income groups (and I think also IDA/FCV classification), the classifcation released in a given year rely on data from the prior year
 gen year_data = year_release-1
 lab var year_data "Year of the data the classifications are based upon"
@@ -221,11 +243,10 @@ lab var year_data "Year of the data the classifications are based upon"
 lab var incgroup_current "Income group - latest year"
 lab var ida_current      "Lending category - latest year"
 lab var fcv_current      "FCV status - latest year"
-lab var year             "Year"
 lab var code             "Country code"
 lab var region           "World Bank region"
-lab var region_povcalnet "PovcalNet region"
-order economy code year region region_povcalnet region_SSA incgroup* ida* fcv*
+lab var region_pip       "PIP region"
+order economy code year* region region_pip region_SSA incgroup* ida* fcv*
 
 compress
 
