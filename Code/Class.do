@@ -3,7 +3,7 @@
 ********************
 /* 
 This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
-for each of the 218 economies the World Bank's operates with, from 1988 to 2023. 
+for each of the 218 economies the World Bank's operates with, from 1988 to 2024. 
 1988 is the first year with income classification data.
 Created by: Daniel Gerszon Mahler
 */
@@ -19,7 +19,7 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AK238) firstrow clear
+import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AL238) firstrow clear
 drop if missing(A)
 rename A code
 rename Banksfiscalyear economy
@@ -30,7 +30,7 @@ rename FY`yr' y19`yr'
 forvalues yr=0/9 {
 rename FY0`yr' y200`yr'
 }
-forvalues yr=10/23 {
+forvalues yr=10/24 {
 rename FY`yr' y20`yr'
 }
 reshape long y, i(code economy) j(year)
@@ -141,9 +141,9 @@ sort    code year
 save    "OutputData/CLASS.dta", replace
 
 **********************************
-*** FY2022-FY2023 IDA CATEGORY ***
+*** FY2022-FY2024 IDA CATEGORY ***
 **********************************
-foreach year in 2022 2023 {
+foreach year in 2022 2023 2024 {
 import excel "InputData/CLASS_FY`year'.xlsx", sheet("List of economies") firstrow clear
 drop if missing(Region)
 keep  Code Lendingcat Region
@@ -189,6 +189,14 @@ bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2023
 // Making the changes from the FY22 list
 replace fcv_historical = "No"  if year==2023 & inlist(code,"ARM","AZE","KIR")       
 replace fcv_historical = "Yes" if year==2023 & inlist(code,"UKR")
+save "OutputData/CLASS.dta", replace
+
+******************
+*** FCV FY2024 ***
+******************
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2024
+// Making the changes from the FY23 list
+replace fcv_historical = "Yes" if year==2024 & inlist(code,"KIR","STP")
 save "OutputData/CLASS.dta", replace
 
 *************************
