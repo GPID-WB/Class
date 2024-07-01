@@ -3,9 +3,9 @@
 ********************
 /* 
 This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
-for each of the 218 economies the World Bank's operates with, from 1988 to 2024. 
+for each of the 218 economies the World Bank's operates with, from 1988 to 2025. 
 1988 is the first year with income classification data.
-Created by: Daniel Gerszon Mahler
+Created by: Daniel Gerszon Mahler (dmahler@worldbank.org)
 */
 
 ******************
@@ -19,7 +19,7 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AL238) firstrow clear
+import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AM238) firstrow clear
 drop if missing(A)
 rename A code
 rename Banksfiscalyear economy
@@ -30,21 +30,21 @@ rename FY`yr' y19`yr'
 forvalues yr=0/9 {
 rename FY0`yr' y200`yr'
 }
-forvalues yr=10/24 {
+forvalues yr=10/25 {
 rename FY`yr' y20`yr'
 }
 reshape long y, i(code economy) j(year)
 rename y income_group
 replace income_group="" if income_group==".."
 // Creating income classifications for countries that didn't exist
-// Giving Kosovo Serbia's income classification before it became a separate country
+// Giving Kosovo the income classification of Serbia before it became a separate country
 *br if inlist(code,"SRB","XKX")
 gen SRB = income_group if code=="SRB"
 gsort year -SRB
 replace SRB = SRB[_n-1] if missing(SRB)
 replace income_group = SRB if code=="XKX" & missing(income_group)
 drop SRB
-// Giving Serbia, Montenegro, and Kosovo Yugoslavia's income classification before they become separate countries
+// Giving Serbia, Montenegro, and Kosovo the income classification of Yugoslavia before they become separate countries
 *br if inlist(code,"YUG","SRB","MNE","XKX")
 gen YUG = income_group if code=="YUG"
 gsort year -YUG
@@ -60,7 +60,7 @@ replace YUGf = YUGf[_n-1] if missing(YUGf)
 replace income_group = YUGf if inlist(code,"HRV","SVN","MKD","BIH","SRB","MNE","XKX") & missing(income_group)
 drop YUGf
 drop if code=="YUGf"
-// Giving Czeck and Slovakia Czeckoslovakia's income classification before they became separate countries
+// Giving Czeck and Slovakia the income classification of Czeckoslovakia before they became separate countries
 *br if inlist(code,"CSK","CZE","SVK")
 gen CSK = income_group if code=="CSK"
 gsort year -CSK
@@ -79,7 +79,7 @@ rename income_group incgroup_historical
 // Assume income group carries backwards when missing
 gsort code -year
 bysort code: replace incgroup_historical = incgroup_historical[_n-1] if missing(incgroup_historical) & year>=1988
-// Assume income group carries forwards when missing. Only applies to Venezuela 2021
+// Assume income group carries forwards when missing. Only applies to Venezuela 
 bysort code (year): replace incgroup_historical = incgroup_historical[_n-1] if missing(incgroup_historical) & year>=1988
 label var incgroup_historical "Income group - historically"
 label var code "Country code"
@@ -143,7 +143,7 @@ save    "OutputData/CLASS.dta", replace
 **********************************
 *** FY2022-FY2024 IDA CATEGORY ***
 **********************************
-foreach year in 2022 2023 2024 {
+foreach year in 2022 2023 2024 2025 {
 import excel "InputData/CLASS_FY`year'.xlsx", sheet("List of economies") firstrow clear
 drop if missing(Region)
 keep  Code Lendingcat Region
@@ -156,47 +156,30 @@ merge 1:1 code year using "OutputData/CLASS.dta",  replace update nogen
 save    "OutputData/CLASS.dta", replace
 }
 
-******************
-*** FCV FY2020 ***
-******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2020
+*************************
+*** FCV FY2020-FY2025 ***
+*************************
 // Making the changes from the FY19 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2020
 replace fcv_historical = "No"  if year==2020 & inlist(code,"CIV","DJI","MOZ","TGO")       
 replace fcv_historical = "Yes" if year==2020 & inlist(code,"BFA","CMR","NER","NGA","VEN") 
-save "OutputData/CLASS.dta", replace
-
-******************
-*** FCV FY2021 ***
-******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2021
 // Making the changes from the FY20 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2021
 replace fcv_historical = "Yes" if year==2021 & inlist(code,"MOZ","LAO")
-save "OutputData/CLASS.dta", replace
-
-******************
-*** FCV FY2022 ***
-******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2022
 // Making the changes from the FY21 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2022
 replace fcv_historical = "No"  if year==2022 & inlist(code,"GMB","LAO","LBR")       
 replace fcv_historical = "Yes" if year==2022 & inlist(code,"ARM","AZE","ETH")
-save "OutputData/CLASS.dta", replace
-
-******************
-*** FCV FY2023 ***
-******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2023
 // Making the changes from the FY22 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2023
 replace fcv_historical = "No"  if year==2023 & inlist(code,"ARM","AZE","KIR")       
 replace fcv_historical = "Yes" if year==2023 & inlist(code,"UKR")
-save "OutputData/CLASS.dta", replace
-
-******************
-*** FCV FY2024 ***
-******************
-bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2024
 // Making the changes from the FY23 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2024
 replace fcv_historical = "Yes" if year==2024 & inlist(code,"KIR","STP")
+// Making the changes from the FY24 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2025
+*Same as FY2024
 save "OutputData/CLASS.dta", replace
 
 *************************
@@ -254,6 +237,7 @@ lab var fcv_current      "FCV status - latest year"
 lab var code             "Country code"
 lab var region           "World Bank region"
 lab var region_pip       "PIP region"
+lab var economy          "Economy"
 order economy code year* region region_pip region_SSA incgroup* ida* fcv*
 
 compress
