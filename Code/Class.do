@@ -3,7 +3,7 @@
 ********************
 /* 
 This .do-file creates a .dta with current and historical income group, IDA, and FCV classifications 
-for each of the 218 economies the World Bank's operates with, from 1988 to 2025. 
+for each of the 218 economies the World Bank's operates with, from 1988 to 2026. 
 1988 is the first year with income classification data.
 Created by: Daniel Gerszon Mahler (dmahler@worldbank.org)
 */
@@ -19,7 +19,7 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AM238) firstrow clear
+import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AN239) firstrow clear
 drop if missing(A)
 rename A code
 rename Banksfiscalyear economy
@@ -30,7 +30,7 @@ rename FY`yr' y19`yr'
 forvalues yr=0/9 {
 rename FY0`yr' y200`yr'
 }
-forvalues yr=10/25 {
+forvalues yr=10/26 {
 rename FY`yr' y20`yr'
 }
 reshape long y, i(code economy) j(year)
@@ -143,12 +143,11 @@ save    "OutputData/CLASS.dta", replace
 **********************************
 *** FY2022-FY2024 IDA CATEGORY ***
 **********************************
-foreach year in 2022 2023 2024 2025 {
+foreach year in 2022 2023 2024 2025 2026 {
 import excel "InputData/CLASS_FY`year'.xlsx", sheet("List of economies") firstrow clear
 drop if missing(Region)
-keep  Code Lendingcat Region
+keep  Code Lendingcat
 rename Code code
-rename Region region
 rename Lendingcat ida_historical
 replace ida = "Rest of the world" if missing(ida)
 gen year = `year'
@@ -182,6 +181,17 @@ bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2025
 *Same as FY2024
 save "OutputData/CLASS.dta", replace
 
+************************
+*** ADDING WB REGION ***
+************************
+import excel "InputData/CLASS_FY2026.xlsx", sheet("List of economies") firstrow clear
+keep Code Region
+keep if _n<=218
+rename Region region
+rename Code code
+merge 1:m code using "OutputData/CLASS.dta", nogen
+save "OutputData/CLASS.dta", replace
+
 *************************
 *** ADDING PIP REGION ***
 *************************
@@ -210,8 +220,12 @@ save "OutputData/CLASS.dta", replace
 isid code year
 // Create current category variables
 qui sum year
-foreach type in incgroup ida fcv {
+foreach type in incgroup ida {
 gen `type'_current = `type'_historical if year==`r(max)'
+}
+REMOVE THIS WHEN THE FY26 FCV CATEGORY IS OUT
+foreach type in fcv {
+gen `type'_current = `type'_historical if year==`r(max)'-1
 }
 // Filling out missing values
 foreach var of varlist economy region *current {
