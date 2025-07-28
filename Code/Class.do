@@ -179,6 +179,9 @@ replace fcv_historical = "Yes" if year==2024 & inlist(code,"KIR","STP")
 // Making the changes from the FY24 list
 bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2025
 *Same as FY2024
+// Making the changes from the FY25 list
+bysort code (year): replace fcv_historical = fcv_historical[_n-1] if year==2026
+replace fcv_historical = "No" if year==2026 & code=="XKX"
 save "OutputData/CLASS.dta", replace
 
 ************************
@@ -220,12 +223,8 @@ save "OutputData/CLASS.dta", replace
 isid code year
 // Create current category variables
 qui sum year
-foreach type in incgroup ida {
+foreach type in incgroup ida fcv {
 gen `type'_current = `type'_historical if year==`r(max)'
-}
-REMOVE THIS WHEN THE FY26 FCV CATEGORY IS OUT
-foreach type in fcv {
-gen `type'_current = `type'_historical if year==`r(max)'-1
 }
 // Filling out missing values
 foreach var of varlist economy region *current {
