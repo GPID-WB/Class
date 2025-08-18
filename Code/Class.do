@@ -192,6 +192,18 @@ keep Code Region
 keep if _n<=218
 rename Region region
 rename Code code
+
+// Add region codes. These codes are not consistent with WDI (where these are the codes for the regions when excluding high income) but they are the most frequently used nonetheless
+
+gen     region_code = ""
+replace region_code = "EAP" if region=="East Asia & Pacific"
+replace region_code = "ECA" if region=="Europe & Central Asia"
+replace region_code = "LAC" if region=="Latin America & Caribbean"
+replace region_code = "MNA" if region=="Middle East, North Africa, Afghanistan & Pakistan"
+replace region_code = "NAC" if region=="North America"
+replace region_code = "SAS" if region=="South Asia"
+replace region_code = "SSA" if region=="Sub-Saharan Africa"
+
 merge 1:m code using "OutputData/CLASS.dta", nogen
 save "OutputData/CLASS.dta", replace
 
@@ -227,7 +239,7 @@ foreach type in incgroup ida fcv {
 gen `type'_current = `type'_historical if year==`r(max)'
 }
 // Filling out missing values
-foreach var of varlist economy region *current {
+foreach var of varlist economy region region_code *current {
 gsort code -`var'
 bysort code: replace `var'=`var'[_n-1] if missing(`var')
 }
@@ -248,10 +260,11 @@ lab var incgroup_current "Income group - latest year"
 lab var ida_current      "Lending category - latest year"
 lab var fcv_current      "FCV status - latest year"
 lab var code             "Country code"
-lab var region           "World Bank region"
-lab var region_pip       "PIP region"
+lab var region           "World Bank region name"
+lab var region_code      "World Bank region code"
+lab var region_pip       "PIP region code"
 lab var economy          "Economy"
-order economy code year* region region_pip region_SSA incgroup* ida* fcv*
+order economy code year* region region_code region_pip region_SSA incgroup* ida* fcv*
 
 compress
 
