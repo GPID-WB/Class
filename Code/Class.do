@@ -12,6 +12,7 @@ Created by: Daniel Gerszon Mahler (dmahler@worldbank.org)
 *** DIRECTOTRY ***
 ******************
 // Daniel
+
 if (lower("`c(username)'") == "wb514665") {
 	cd "C:\Users\WB514665\OneDrive - WBG\PovcalNet\GitHub\Class"
 }
@@ -19,7 +20,7 @@ if (lower("`c(username)'") == "wb514665") {
 ***************************************
 *** HISTORICAL/CURRENT INCOME GROUP ***
 ***************************************
-import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AN239) firstrow clear
+import excel "InputData/OGHIST.xlsx", sheet("Country Analytical History") cellrange(A5:AO233) firstrow clear
 drop if missing(A)
 rename A code
 rename Banksfiscalyear economy
@@ -30,7 +31,7 @@ rename FY`yr' y19`yr'
 forvalues yr=0/9 {
 rename FY0`yr' y200`yr'
 }
-forvalues yr=10/26 {
+forvalues yr=10/27 {
 rename FY`yr' y20`yr'
 }
 reshape long y, i(code economy) j(year)
@@ -71,6 +72,7 @@ drop if code=="CSK"
 // Dropping three economies that are not among the WB's 218 economies
 drop if inlist(code,"MYT","ANT","SUN")
 // Now 218 economies
+ssc install distinct
 distinct code
 if r(ndistinct)!=218 {
 disp in red "There is an error somewhere -- you do not have 218 distinct economies"
@@ -140,9 +142,9 @@ sort    code year
 save    "OutputData/CLASS.dta", replace
 
 **********************************
-*** FY2022-FY2024 IDA CATEGORY ***
+*** FY2022-FY2027 IDA CATEGORY ***
 **********************************
-foreach year in 2022 2023 2024 2025 2026 {
+foreach year in 2022 2023 2024 2025 2026 2027 {
 import excel "InputData/CLASS_FY`year'.xlsx", sheet("List of economies") firstrow clear
 drop if missing(Region)
 keep  Code Lendingcat
@@ -185,6 +187,11 @@ bysort code (year): replace fcv = fcv[_n-1] if year==2025
 // Making the changes from the FY25 list
 bysort code (year): replace fcv = fcv[_n-1] if year==2026
 replace fcv = "No" if year==2026 & code=="XKX"
+// Making the changes from the FY26 list
+bysort code (year): replace fcv = fcv[_n-1] if year==2027
+replace fcv = "Yes" if year==2027 & code=="IRN"
+replace fcv = "No" if year==2027 & inlist(code,"BDI","TCD","COG","COM","ERI","GNB","KIR","MHL")
+replace fcv = "No" if year==2027 & inlist(code,"FSM","STP","SLB","TLS","TUV","VEN","ZWE")
 gen fcv_code = "FCVN" if fcv=="No"
 replace fcv_code = "FCVY" if fcv=="Yes"
 save "OutputData/CLASS.dta", replace
@@ -286,4 +293,5 @@ compress
 
 sort code year_data
 
-save "OutputData/CLASS.dta", replace
+
+save "OutputData\CLASS.dta", replace
